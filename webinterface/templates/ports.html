@@ -208,5 +208,127 @@ grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2
                   class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-600 rounded-lg focus:outline-none"
                   rows="20"></textarea>
     </div>
+
+    <div class="flex-1 grid p-5 bg-gray-200 dark:bg-gray-700 shadow-xl rounded-lg">
+        <div class="flex-1 font-bold text-xl pb-2 text-gray-600 dark:text-gray-400">
+            <div class="flex">
+                <div data-translate="bluetooth_control">Bluetooth Control</div>
+                <div class='has-tooltip'>
+                    <span class='text-xs inline-bloc tooltip rounded shadow-lg p-1 bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400 -mt-8'>
+                        <div data-translate="bluetooth_control_help">Control Bluetooth MIDI connections and device discovery.</div>
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4 mt-2" fill="none" viewBox="0 0 24 24"
+                         stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap -mx-3">
+            <div class="w-full px-3 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span id="bluetooth_status" class="text-sm text-gray-600 dark:text-gray-400">
+                            <span data-translate="status">Status:</span>
+                            <span id="bluetooth_connection_status" class="ml-2">Disconnected</span>
+                        </span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="scan_bluetooth" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            <span data-translate="scan_devices">Scan Devices</span>
+                        </button>
+                        <button id="toggle_bluetooth" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                            <span data-translate="start_server">Start Server</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full px-3">
+                <div class="bg-gray-100 dark:bg-gray-600 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-2" data-translate="available_devices">Available Devices</h3>
+                    <div id="bluetooth_devices" class="space-y-2">
+                        <!-- Devices will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize MIDI functionality
+    updateActivePorts();
+    updateAvailablePorts();
+    setInterval(updateAvailablePorts, 5000);
+
+    // Bluetooth functionality
+    const bluetoothStatus = document.getElementById('bluetooth_connection_status');
+    const scanButton = document.getElementById('scan_bluetooth');
+    const toggleButton = document.getElementById('toggle_bluetooth');
+    const devicesList = document.getElementById('bluetooth_devices');
+    let isServerRunning = false;
+
+    function updateBluetoothStatus() {
+        fetch('/api/bluetooth/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.is_connected) {
+                    bluetoothStatus.textContent = 'Connected';
+                    bluetoothStatus.classList.add('text-green-500');
+                } else {
+                    bluetoothStatus.textContent = 'Disconnected';
+                    bluetoothStatus.classList.remove('text-green-500');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    scanButton.addEventListener('click', function() {
+        fetch('/api/bluetooth/scan')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    devicesList.innerHTML = '';
+                    data.devices.forEach(device => {
+                        const deviceElement = document.createElement('div');
+                        deviceElement.className = 'flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded';
+                        deviceElement.innerHTML = `
+                            <span>${device.name || 'Unknown Device'}</span>
+                            <span class="text-sm text-gray-500">${device.address}</span>
+                        `;
+                        devicesList.appendChild(deviceElement);
+                    });
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    });
+
+    toggleButton.addEventListener('click', function() {
+        const endpoint = isServerRunning ? '/api/bluetooth/disconnect' : '/api/bluetooth/connect';
+        const method = isServerRunning ? 'POST' : 'POST';
+
+        fetch(endpoint, { method: method })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    isServerRunning = !isServerRunning;
+                    toggleButton.textContent = isServerRunning ? 'Stop Server' : 'Start Server';
+                    toggleButton.classList.toggle('bg-green-500');
+                    toggleButton.classList.toggle('bg-red-500');
+                    updateBluetoothStatus();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    });
+
+    // Initial Bluetooth status update
+    updateBluetoothStatus();
+    // Update Bluetooth status every 5 seconds
+    setInterval(updateBluetoothStatus, 5000);
+});
+</script>
 

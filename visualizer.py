@@ -82,12 +82,17 @@ class VisualizerApp:
         self.ledshow_timestamp = time.time()
 
     def ensure_singleton(self):
-        self.fh = open(os.path.realpath(__file__), 'r')
         try:
+            self.fh = open(os.path.realpath(__file__), 'r')
             fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            logger.warning("[ensure_singleton] Another instance is already running")
+            sys.exit(1)
         except Exception as error:
-            logger.warning(f"[ensure_singleton] Unexpected exception occurred: {error}")
-            restart_script()
+            logger.warning(f"[ensure_singleton] Unexpected error: {error}")
+            if hasattr(self, 'fh') and self.fh:
+                self.fh.close()
+            sys.exit(1)
 
     def run(self):
         self.component_initializer.platform.manage_hotspot(self.component_initializer.hotspot,

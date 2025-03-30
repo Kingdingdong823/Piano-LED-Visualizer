@@ -4,6 +4,7 @@ import websockets
 from lib.functions import get_ip_address
 import json
 from lib.log_setup import logger
+from lib.bluetooth_handler import BluetoothHandler
 
 UPLOAD_FOLDER = 'Songs/'
 
@@ -32,6 +33,7 @@ class AppState:
         self.platform = None
         self.ledemu_clients = set()  # Track active LED emulator clients
         self.ledemu_pause = False
+        self.bluetooth_handler = BluetoothHandler()  # Add this line
 
 
 # Create a single instance of AppState

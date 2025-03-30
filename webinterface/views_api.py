@@ -1699,3 +1699,46 @@ def pretty_print(dom):
 def pretty_save(file_path, sequences_tree):
     with open(file_path, "w", encoding="utf8") as outfile:
         outfile.write(pretty_print(sequences_tree))
+
+
+@webinterface.route('/api/bluetooth/status', methods=['GET'])
+def get_bluetooth_status():
+    """Get the current Bluetooth connection status."""
+    if hasattr(app_state, 'bluetooth_handler'):
+        return jsonify({
+            'is_connected': app_state.bluetooth_handler.is_connected,
+            'device_name': app_state.bluetooth_handler.device_name
+        })
+    return jsonify({'error': 'Bluetooth handler not initialized'})
+
+@webinterface.route('/api/bluetooth/connect', methods=['POST'])
+def connect_bluetooth():
+    """Start the Bluetooth server and begin accepting connections."""
+    if hasattr(app_state, 'bluetooth_handler'):
+        if app_state.bluetooth_handler.start_server():
+            app_state.bluetooth_handler.create_midi_port()
+            # Start accepting connections in a separate thread
+            app_state.bluetooth_thread = threading.Thread(target=app_state.bluetooth_handler.accept_connection)
+            app_state.bluetooth_thread.daemon = True
+            app_state.bluetooth_thread.start()
+            return jsonify({'status': 'success', 'message': 'Bluetooth server started'})
+        return jsonify({'status': 'error', 'message': 'Failed to start Bluetooth server'})
+    return jsonify({'status': 'error', 'message': 'Bluetooth handler not initialized'})
+
+@webinterface.route('/api/bluetooth/disconnect', methods=['POST'])
+def disconnect_bluetooth():
+    """Disconnect and cleanup Bluetooth connections."""
+    if hasattr(app_state, 'bluetooth_handler'):
+        app_state.bluetooth_handler.close()
+        return jsonify({'status': 'success', 'message': 'Bluetooth connections closed'})
+    return jsonify({'status': 'error', 'message': 'Bluetooth handler not initialized'})
+
+@webinterface.route('/api/bluetooth/scan', methods=['GET'])
+def scan_bluetooth_devices():
+    """Scan for available Bluetooth devices."""
+    try:
+        nearby_devices = bluetooth.discover_devices(lookup_names=True)
+        devices = [{'address': addr, 'name': name} for addr, name in nearby_devices]
+        return jsonify({'status': 'success', 'devices': devices})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
